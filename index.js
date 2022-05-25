@@ -76,6 +76,8 @@ app.put('/campgrounds/:id', async (req,res) => {
     res.render('campgrounds/show',{campground});
 })
 
+// Route for deleting
+
 app.delete('/campgrounds/:id', async (req,res) => {
     const {id} = req.params;
     await Campground.findByIdAndDelete(id);
