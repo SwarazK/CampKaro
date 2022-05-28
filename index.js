@@ -5,6 +5,9 @@ const Campground = require('./models/campgrounds');
 const methodOverride = require('method-override');
 const { allowedNodeEnvironmentFlags } = require('process');
 const ejsMate = require("ejs-mate");
+const catchAsync = require("./utils/catchAsync");
+
+
 
 mongoose.connect('mongodb://localhost:27017/camp-karo',{ // Why those three properties are specified
     useNewUrlParser: true,
@@ -16,7 +19,7 @@ const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", ()=>{
     console.log("Database Connected");
-})
+});
 
 const app  = express();
 
@@ -29,7 +32,7 @@ app.use(methodOverride('_method')); // For getting requests other than GET and P
 
 app.get('/',(req,res)=>{ // Route for the home page of the website
     res.render('home');
-})
+});
 
 // app.get('/makecampground', async (req,res)=>{
 //     const camp = new Campground({title : "My Background", description: 'Cheap camping!'});
@@ -37,53 +40,63 @@ app.get('/',(req,res)=>{ // Route for the home page of the website
 //     res.send(camp);
 // })
 
-app.get('/campgrounds', async(req,res) =>{ // Route for the main display page of the website
+app.get('/campgrounds',catchAsync(async(req,res) =>{ // Route for the main display page of the website
     const campgrounds = await Campground.find({}); // Finds ans retrieves all the campgrounds from the DB
     res.render('campgrounds/index', {campgrounds}); // The retrieved campgrounds are passed to the ejs file as an object
-});
+}));
 
 // A form for adding new camps :
 // Two routes, a page and a route to access the form using a GET request and then a POST request to update the database and to redirect to the index/main display
 
 app.get('/campgrounds/new',(req,res) =>{
     res.render('campgrounds/new');
-})
+});
 
-app.post('/campgrounds', async (req,res)=>{
+app.post('/campgrounds', catchAsync(async (req,res,next)=>{ // catchAsync is the wrapper function used for error handling
+    // try{
     const campground = new Campground(req.body.campground); // Because of the name field 
     await campground.save();
     res.redirect(`/campgrounds/${campground._id}`);
-})
+    // }
+    // catch(e){
+        // next(e); // Pass the async error to next to handle it -> the newer way is to use a wrapper function
+    // }
+}));
 
 // Route for viewing the details of individual campgrounds
 
-app.get('/campgrounds/:id', async(req,res) =>{ 
+app.get('/campgrounds/:id', catchAsync(async(req,res) =>{ 
     const campground = await Campground.findById(req.params.id);
     res.render('campgrounds/show',{campground});
-});
+}));
 
 // Routes for editing the campground entries
 // One GET for serving the form and a PUT for updating the database and ridirecting to the camp page 
 
-app.get('/campgrounds/:id/edit', async (req,res)=>{
+app.get('/campgrounds/:id/edit', catchAsync(async (req,res)=>{
     const campground = await Campground.findById(req.params.id);
     res.render('campgrounds/edit', {campground});
-})
+}));
 
-app.put('/campgrounds/:id', async (req,res) => {
+app.put('/campgrounds/:id', catchAsync(async (req,res) => {
     const {id} = req.params;
     const campground = await Campground.findByIdAndUpdate(id,{...req.body.campground});
     res.render('campgrounds/show',{campground});
-})
+}));
 
 // Route for deleting
 
-app.delete('/campgrounds/:id', async (req,res) => {
+app.delete('/campgrounds/:id', catchAsync(async (req,res) => {
     const {id} = req.params;
     await Campground.findByIdAndDelete(id);
     res.redirect('/campgrounds');
-})
+}));
+
+// Basic error handling middleware that'll respond to every error that is thrown
+app.use((err,req,res,next)=>{
+    res.send("Something went wrong!");
+});
 
 app.listen(3000, ()=>{
     console.log('Listening on port 3000');
-}) 
+});
