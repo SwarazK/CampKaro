@@ -6,6 +6,8 @@ const methodOverride = require('method-override');
 const { allowedNodeEnvironmentFlags } = require('process');
 const ejsMate = require("ejs-mate");
 const catchAsync = require("./utils/catchAsync");
+const ExpressError = require('./utils/ExpressErrors');
+const {campgroundSchema} = require("./schemas");
 
 
 
@@ -30,6 +32,20 @@ app.set('views', path.join(__dirname,'views'));
 app.use(express.urlencoded({extended : true})); // For parsing the input from the forms
 app.use(methodOverride('_method')); // For getting requests other than GET and POST from forms
 
+
+const validateCampground= (req,res,next) => {
+    const {error} = campgroundSchema.validate(req.body);
+
+    if(error){
+        const msg = error.details.map(el => el.message).join(','); // We convert the message object into a string
+        throw new ExpressError(msg, 400);
+    }
+    else{
+        next();
+    }
+}
+
+
 app.get('/',(req,res)=>{ // Route for the home page of the website
     res.render('home');
 });
@@ -52,7 +68,26 @@ app.get('/campgrounds/new',(req,res) =>{
     res.render('campgrounds/new');
 });
 
-app.post('/campgrounds', catchAsync(async (req,res,next)=>{ // catchAsync is the wrapper function used for error handling
+app.post('/campgrounds', validateCampground, catchAsync(async (req,res,next)=>{ // catchAsync is the wrapper function used for error handling
+    // if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
+
+    // const campgroundSchema = Joi.object({ // We use Joi to validate the incoming payload accoring to the defined schema
+    //     campground: Joi.object({
+    //         title: Joi.string().required(),
+    //         price: Joi.number().required().min(0),
+    //         image: Joi.string().required(),
+    //         location: Joi.string.required(),
+    //         description: Joi.string().required()
+    //     }).required()
+    // })
+
+    // const {error} = campgroundSchema.validate(req.body);
+
+    // if(error){
+    //     const msg = error.details.map(el => el.message).join(','); // We convert the message object into a string
+    //     throw new ExpressError(msg, 400);
+    // }
+
     // try{
     const campground = new Campground(req.body.campground); // Because of the name field 
     await campground.save();
@@ -73,12 +108,13 @@ app.get('/campgrounds/:id', catchAsync(async(req,res) =>{
 // Routes for editing the campground entries
 // One GET for serving the form and a PUT for updating the database and ridirecting to the camp page 
 
-app.get('/campgrounds/:id/edit', catchAsync(async (req,res)=>{
+app.get('/campgrounds/:id/edit', validateCampground, catchAsync(async (req,res)=>{
     const campground = await Campground.findById(req.params.id);
     res.render('campgrounds/edit', {campground});
 }));
 
 app.put('/campgrounds/:id', catchAsync(async (req,res) => {
+    if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
     const {id} = req.params;
     const campground = await Campground.findByIdAndUpdate(id,{...req.body.campground});
     res.render('campgrounds/show',{campground});
@@ -92,9 +128,15 @@ app.delete('/campgrounds/:id', catchAsync(async (req,res) => {
     res.redirect('/campgrounds');
 }));
 
+// Catches all requests that dont hit the previous routes
+app.all('*',(req,res,next)=>{ 
+    next(new ExpressError('Page Not Found'),404);
+})
+
 // Basic error handling middleware that'll respond to every error that is thrown
 app.use((err,req,res,next)=>{
-    res.send("Something went wrong!");
+    const {statusCode = 500} = err;
+    res.status(statusCode).render("error",{err});
 });
 
 app.listen(3000, ()=>{
