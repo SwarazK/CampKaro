@@ -1,15 +1,15 @@
 const express = require('express');
 const path = require('path'); // To dynamically set the paths
 const mongoose = require('mongoose');
-const Campground = require('./models/campgrounds');
-const Review = require('./models/reviews');
+
 const methodOverride = require('method-override');
 const ejsMate = require("ejs-mate");
-const catchAsync = require("./utils/catchAsync");
+
 const ExpressError = require('./utils/ExpressErrors');
-const {campgroundSchema, reviewSchema} = require("./schemas");
+
 
 const campgrounds = require("./routes/campgrounds");
+const reviews = require('./routes/reviews');
 
 
 mongoose.connect('mongodb://localhost:27017/camp-karo',{ // Why those three properties are specified
@@ -32,44 +32,14 @@ app.set('views', path.join(__dirname,'views'));
 
 app.use(express.urlencoded({extended : true})); // For parsing the input from the forms
 app.use(methodOverride('_method')); // For getting requests other than GET and POST from forms
+app.use(express.static("public")); // For setting the path of serving static assets
 
-const validateReview= (req,res,next) => {
-    const {error} = reviewSchema.validate(req.body);
-
-    if(error){
-        const msg = error.details.map(el => el.message).join(','); // We convert the message object into a string
-        throw new ExpressError(msg, 400);
-    }
-    else{
-        next();
-    }
-}
-
+app.use("/campgrounds/:id/reviews", reviews);
 app.use("/campgrounds", campgrounds); // Pass all requests starting with /campgrounds to the campgrounds route
 
 app.get('/',(req,res)=>{ // Route for the home page of the website
     res.render('home');
 });
-
-//*********************************************************************//
-//                          Review Routes                              //
-//*********************************************************************//
-
-app.post('/campgrounds/:id/reviews', validateReview, catchAsync( async (req,res)=>{
-    const campground = await Campground.findById(req.params.id);
-    const review = new Review(req.body.review);
-    campground.reviews.push(review);
-    await review.save();
-    await campground.save();
-    res.redirect(`/campgrounds/${campground._id}`);
-}))
-
-app.delete("/campgrounds/:id/reviews/:reviewId", catchAsync(async (req,res)=>{
-    const {id, reviewId} = req.params;
-    await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId}});
-    await Review.findByIdAndDelete(reviewId);
-    res.redirect(`/campgrounds/${id}`);
-}))
 
 // Catches all requests that dont hit the previous routes
 app.all('*',(req,res,next)=>{ 
