@@ -41,7 +41,7 @@ router.get('/new',(req,res) =>{
     res.render('campgrounds/new');
 });
 
-router.post('/', validateCampground, catchAsync(async (req,res,next)=>{ // catchAsync is the wrrouterer function used for error handling
+router.post('/', validateCampground, catchAsync(async (req,res,next)=>{ // catchAsync is the function used for error handling
     // if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
 
     // const campgroundSchema = Joi.object({ // We use Joi to validate the incoming payload accoring to the defined schema
@@ -64,6 +64,7 @@ router.post('/', validateCampground, catchAsync(async (req,res,next)=>{ // catch
     // try{
     const campground = new Campground(req.body.campground); // Because of the name field 
     await campground.save();
+    
     res.redirect(`/campgrounds/${campground._id}`);
     // }
     // catch(e){
@@ -76,6 +77,10 @@ router.post('/', validateCampground, catchAsync(async (req,res,next)=>{ // catch
 router.get('/:id', catchAsync(async(req,res) =>{ 
     const campground = await Campground.findById(req.params.id).populate("reviews");
     // console.log(campground);
+    if(!campground){
+        req.flash("error", "Cannot find the campground!");
+        res.redirect("/campground");
+    }
     res.render('campgrounds/show',{campground});
 }));
 
@@ -92,6 +97,7 @@ router.put('/:id', validateCampground, catchAsync(async (req,res) => {
     const {id} = req.params;
     await Campground.findByIdAndUpdate(id,{...req.body.campground});
     const campground = await Campground.findById(req.params.id).populate("reviews");
+    req.flash("success", "Successfully updated campground");
     res.render('campgrounds/show',{campground});
 }));
 
