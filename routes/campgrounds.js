@@ -6,6 +6,7 @@ const ExpressError = require('../utils/ExpressErrors');
 
 const Campground = require('../models/campgrounds');
 const {campgroundSchema} = require("../schemas");
+const {isLoggedIn} = require("../middleware");
 
 const validateCampground= (req,res,next) => {
     const {error} = campgroundSchema.validate(req.body);
@@ -37,11 +38,11 @@ router.get('/',catchAsync(async(req,res) =>{ // Route for the main display page 
 // A form for adding new camps :
 // Two routes, a page and a route to access the form using a GET request and then a POST request to update the database and to redirect to the index/main display
 
-router.get('/new',(req,res) =>{
+router.get('/new', isLoggedIn,(req,res) =>{
     res.render('campgrounds/new');
 });
 
-router.post('/', validateCampground, catchAsync(async (req,res,next)=>{ // catchAsync is the function used for error handling
+router.post('/', isLoggedIn, validateCampground, catchAsync(async (req,res,next)=>{ // catchAsync is the function used for error handling
     // if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
 
     // const campgroundSchema = Joi.object({ // We use Joi to validate the incoming payload accoring to the defined schema
@@ -87,12 +88,12 @@ router.get('/:id', catchAsync(async(req,res) =>{
 // Routes for editing the campground entries
 // One GET for serving the form and a PUT for updating the database and ridirecting to the camp page 
 
-router.get('/:id/edit', catchAsync(async (req,res)=>{
+router.get('/:id/edit', isLoggedIn, catchAsync(async (req,res)=>{
     const campground = await Campground.findById(req.params.id);
     res.render('campgrounds/edit', {campground});
 }));
 
-router.put('/:id', validateCampground, catchAsync(async (req,res) => {
+router.put('/:id', isLoggedIn, validateCampground, catchAsync(async (req,res) => {
     if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
     const {id} = req.params;
     await Campground.findByIdAndUpdate(id,{...req.body.campground});
@@ -103,7 +104,7 @@ router.put('/:id', validateCampground, catchAsync(async (req,res) => {
 
 // Route for deleting
 
-router.delete('/:id', catchAsync(async (req,res) => {
+router.delete('/:id', isLoggedIn, catchAsync(async (req,res) => {
     const {id} = req.params;
     await Campground.findByIdAndDelete(id);
     res.redirect('/campgrounds');
