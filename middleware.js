@@ -2,6 +2,7 @@ const Campground = require('./models/campgrounds');
 const Review = require('./models/reviews');
 const {campgroundSchema} = require("./schemas");
 const {reviewSchema} = require("./schemas");
+const ExpressError = require('./utils/ExpressErrors');
 
 module.exports.isLoggedIn = (req, res, next) =>{ // Used to check if a user is logged in or not
     if(!req.isAuthenticated()){ // isAuthenticated is provided by passport
