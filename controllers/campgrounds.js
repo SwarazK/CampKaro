@@ -30,10 +30,12 @@ module.exports.createCampground = async (req,res,next)=>{ // catchAsync is the f
     // }
 
     // try{
-    const campground = new Campground(req.body.campground); // Because of the name field 
+    const campground = new Campground(req.body.campground); // Because of the name field
+    campground.images = req.files.map(f => ({ url: f.path, filename: f.filename}));
     campground.author = req.user._id; // To add the current user as the author of the campground
     await campground.save();
     
+    req.flash("success", "Successfully made a new campground");
     res.redirect(`/campgrounds/${campground._id}`);
     // }
     // catch(e){
@@ -66,7 +68,14 @@ module.exports.updateCampground = async (req,res) => {
     if(!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
     const {id} = req.params;
 
-    await Campground.findByIdAndUpdate(id,{...req.body.campground});
+    const caampground = await Campground.findByIdAndUpdate(id,{...req.body.campground});
+    const imgs = req.files.map(f => ({ url: f.path, filename: f.filename}));
+
+    caampground.images.push(...imgs);
+    caampground.author = req.user._id; // To add the current user as the author of the campground
+    
+    await caampground.save();
+
     const campground = await Campground.findById(req.params.id).populate({ 
         path: "reviews",
         populate:{

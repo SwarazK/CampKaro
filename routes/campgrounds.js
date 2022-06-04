@@ -1,8 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 
 const catchAsync = require("../utils/catchAsync");
 const ExpressError = require('../utils/ExpressErrors');
+const {storage} = require("../cloudinary/index")
+const upload = multer({storage});
 
 const Campground = require('../models/campgrounds');
 
@@ -27,7 +30,7 @@ router.get('/',catchAsync(campgrounds.index)); // Route for the main display pag
 
 router.get('/new', isLoggedIn, campgrounds.renderNewForm);
 
-router.post('/', isLoggedIn, validateCampground, catchAsync(campgrounds.createCampground));
+router.post('/', isLoggedIn, upload.array("image"), validateCampground, catchAsync(campgrounds.createCampground));
 
 // Route for viewing the details of individual campgrounds
 
@@ -38,7 +41,7 @@ router.get('/:id', catchAsync(campgrounds.showCampground));
 
 router.get('/:id/edit', isLoggedIn, isAuthor, catchAsync(campgrounds.renderEditForm));
 
-router.put('/:id', isLoggedIn, validateCampground, isAuthor, catchAsync(campgrounds.updateCampground));
+router.put('/:id', isLoggedIn, isAuthor, upload.array("image"), validateCampground, catchAsync(campgrounds.updateCampground));
 
 // Route for deleting
 
